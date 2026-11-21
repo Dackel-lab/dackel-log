@@ -1,6 +1,25 @@
 # Release Notes — Dackel.Log
 
 
+## [1.0.5] - 2026-11-21
+
+### Adicionado
+
+- `DackelLogExceptionHandler`: `IExceptionHandler` embutido que registra a exceção
+  uma única vez (respeitando `WasLogged`) e responde `ProblemDetails` com
+  `status`, `title`, `instance` e `traceId` igual ao `X-Trace-Id`.
+- `AddDackelLogExceptionHandling()` para registrar o handler e o serviço de
+  `ProblemDetails` com uma linha.
+- `DackelLogExceptionHandlerOptions` com `StatusCodeSelector` (padrão `500`) e
+  `Title` para personalizar a resposta.
+- `ProblemDetails.extensions.traceId` é mantido igual ao header `X-Trace-Id`,
+  preservando `CustomizeProblemDetails` da aplicação.
+
+### Segurança
+
+- O corpo do `ProblemDetails` não inclui `exception.Message` nem stack trace;
+  o detalhe permanece somente no log estruturado.
+
 ## [1.0.4] - 2026-11-21
 
 ### Alterado

@@ -14,11 +14,11 @@
     <AssemblyName>Dackel.Log</AssemblyName>
     <RootNamespace>Dackel.Log</RootNamespace>
     <Title>Dackel.Log</Title>
-    <Version>1.0.4</Version>
+    <Version>1.0.5</Version>
     <Authors>Dackel Lab</Authors>
     <Company>Dackel Lab</Company>
     <Copyright>Copyright (c) 2026 Dackel Lab</Copyright>
-    <Description>Dackel.Log: componente de logging estruturado para APIs .NET 8 e .NET 10 com Serilog em JSON compacto, correlação por traceId (W3C), sanitização de dados sensíveis, cadeia recursiva de exceções e middlewares de correlação e logging de exceções.</Description>
+    <Description>Dackel.Log: componente de logging estruturado para APIs .NET 8 e .NET 10 com Serilog em JSON compacto, correlação por traceId (W3C), sanitização de dados sensíveis, cadeia recursiva de exceções, middlewares de correlação e logging de exceções e handler pronto para ProblemDetails.</Description>
     <PackageTags>logging;serilog;observability;tracing;aspnetcore;problem-details</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>

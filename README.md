@@ -14,6 +14,7 @@ Site: https://dackel-log.pages.dev
 
 - **Problem-free logging:** `ILogger.LogError(ex, ...)` e `Log.Error(ex, ...)` geram a cadeia estruturada automaticamente e o `@x` cru é omitido no console JSON; a mensagem/stack pode conter PII ou segredos.
 - **Cadeia recursiva:** registra `InnerException` e `AggregateException` em `ExceptionChain` estruturado, com profundidade configurável (padrão 10) e proteção contra ciclos.
+- **Handler pronto:** `AddDackelLogExceptionHandling()` registra um `IExceptionHandler` que loga uma única vez e responde `ProblemDetails` com o `traceId`, sem expor mensagem/stack da exceção.
 - **Correlação:** `X-Trace-Id` em todas as respostas (sucesso e erro), com o mesmo valor no log e no `ProblemDetails`.
 - **Tenant programático:** enriquecimento calculado por código a cada requisição (`EnrichStructuredLogging`), com precedência sobre o `appsettings`.
 - **Sanitização:** mascara CPF/CNPJ (com ou sem pontuação/espaços), e-mail, bearer/basic token e pares `chave=valor` de credenciais nas mensagens de exceção e nos argumentos de log.
@@ -45,7 +46,7 @@ dotnet add package Dackel.Log
 Versão específica:
 
 ```bash
-dotnet add package Dackel.Log --version 1.0.4
+dotnet add package Dackel.Log --version 1.0.5
 ```
 
 ## Início rápido
@@ -61,6 +62,8 @@ builder.AddStructuredLogging("Minha.Api")
     // Tenant resolvido por código (serviço da aplicação), a cada requisição.
     .EnrichStructuredLogging("Tenant", (context, services) =>
         services.GetRequiredService<ITenantProvider>().GetTenant(context));
+
+builder.Services.AddDackelLogExceptionHandling(); // handler pronto (ProblemDetails + traceId)
 
 var app = builder.Build();
 
@@ -81,7 +84,7 @@ app.Run();
 | 1 | `UseTraceId()` | Precisa ser o mais externo para garantir `X-Trace-Id` mesmo em erro |
 | 2 | `UseRequestEnrichment()` | **Opcional.** Adiciona as propriedades declaradas em `StructuredLogging:Enrichments` e as registradas via `EnrichStructuredLogging()` (ex.: tenant) ao escopo |
 | 3 | `UseStructuredRequestLogging()` | Registra status/duração sem anexar a exceção crua |
-| 4 | `UseExceptionHandler()` | Converte a exceção em `ProblemDetails` |
+| 4 | `UseExceptionHandler()` | Converte a exceção em `ProblemDetails` usando o handler registrado com `AddDackelLogExceptionHandling()` (ou um handler próprio) |
 | 5 | `UseExceptionLogging()` | Loga a cadeia sanitizada e repropaga ao handler |
 
 ### Configuração mínima (sem enriquecimentos)
@@ -92,6 +95,7 @@ essenciais — `UseRequestEnrichment()` não é necessário:
 
 ```csharp
 builder.AddStructuredLogging("Minha.Api");
+builder.Services.AddDackelLogExceptionHandling();
 
 var app = builder.Build();
 
@@ -181,7 +185,34 @@ Regras de segurança:
 
 ## Uso no handler de exceções
 
-Use o `ILogger` normalmente. A exceção anexada ao evento é convertida em
+O pacote já inclui um `IExceptionHandler` pronto. Registre e use o middleware
+nativo:
+
+```csharp
+builder.AddStructuredLogging("Minha.Api");
+builder.Services.AddDackelLogExceptionHandling(options =>
+{
+    // Opcional: mapeia exceções de negócio para 4xx. Padrão: 500.
+    options.StatusCodeSelector = exception => exception is ArgumentException ? 400 : 500;
+    options.Title = "Erro ao processar a requisição";
+});
+
+var app = builder.Build();
+
+app.UseTraceId();
+app.UseExceptionHandler();
+```
+
+O handler:
+
+- registra a exceção uma única vez (respeita `UseExceptionLogging()`/`WasLogged`);
+- responde `ProblemDetails` com `status`, `title`, `instance` e `traceId` igual ao `X-Trace-Id`;
+- **não** expõe `exception.Message` nem stack trace ao cliente.
+
+### Handler customizado com ILogger
+
+Se precisar de regras próprias, continue implementando `IExceptionHandler` e use
+o `ILogger` normalmente. A exceção anexada ao evento é convertida em
 `ExceptionChain` sanitizada e o `@x` cru não é emitido no console JSON:
 
 ```csharp
@@ -205,8 +236,9 @@ public sealed class GlobalExceptionHandler(
 }
 ```
 
-O mesmo vale para `Serilog.Log.Error(exception, ...)`. O `TraceId` já entra por
-meio do `LogContext` do `UseTraceId()`.
+Use o handler embutido **ou** o customizado — registre apenas um deles. O mesmo
+vale para `Serilog.Log.Error(exception, ...)`. O `TraceId` já entra por meio do
+`LogContext` do `UseTraceId()`.
 
 Se `UseExceptionLogging()` também estiver no pipeline, evite duplicidade:
 
@@ -282,6 +314,9 @@ public sealed class GlobalExceptionHandler(
 | Arquivo | Responsabilidade |
 |---|---|
 | `LoggingExtensions.cs` | `AddStructuredLogging()`, `UseTraceId()`, `UseRequestEnrichment()`, `UseStructuredRequestLogging()`, `UseExceptionLogging()` |
+| `DackelLogExceptionHandler.cs` | `IExceptionHandler` pronto: log único + `ProblemDetails` com `traceId` |
+| `DackelLogExceptionHandlerOptions.cs` | `StatusCodeSelector` e `Title` do handler embutido |
+| `ExceptionHandlerServiceCollectionExtensions.cs` | `AddDackelLogExceptionHandling()` |
 | `TraceIdMiddleware.cs` | `X-Trace-Id`, `LogContext` e `HttpContext.Items` |
 | `RequestEnrichmentMiddleware.cs` | Propriedades declarativas e programáticas no escopo de log |
 | `StructuredEnrichmentFactory.cs` | Fábrica do valor de um enriquecimento programático |
@@ -307,11 +342,11 @@ O projeto tem solution própria (`Dackel.Log.sln`), independente da solution con
 ```bash
 dotnet pack Dackel.Log.sln -c Release -o ./artifacts
 
-dotnet nuget push ./artifacts/Dackel.Log.1.0.4.nupkg \
+dotnet nuget push ./artifacts/Dackel.Log.1.0.5.nupkg \
   --api-key "$NUGET_API_KEY" \
   --source https://api.nuget.org/v3/index.json
 
-dotnet nuget push ./artifacts/Dackel.Log.1.0.4.snupkg \
+dotnet nuget push ./artifacts/Dackel.Log.1.0.5.snupkg \
   --api-key "$NUGET_API_KEY" \
   --source https://api.nuget.org/v3/index.json
 ```
@@ -327,6 +362,7 @@ dotnet nuget push ./artifacts/Dackel.Log.1.0.4.snupkg \
 - **Sanitização é melhor esforço:** cobre os formatos mais comuns, mas não envie PII/segredos ao log esperando que o filtro os remova.
 - **Redaction:** atua em objetos logados com destructuring (`{@Objeto}`), nos tipos `*Settings`/`*Options`/`*Configuration`/`*Credentials` e em dicionários; `ToString()` padrão não é mascarado.
 - **`@x` cru:** a omissão vale para o sink de console JSON configurado pelo pacote. Sinks adicionais (arquivo, OTLP etc.) recebem a exceção original; para evitar o `@x` em qualquer sink, use `StructuredExceptionLogger`.
+- **Handler embutido:** o `ProblemDetails` devolvido ao cliente contém apenas `status`, `title`, `instance` e `traceId`; mensagem e stack da exceção ficam somente no log.
 - **Configuração do Serilog:** não permita que usuários finais controlem `Serilog__*`/seção `Serilog` do appsettings — ela define sinks e enriquecimentos.
 
 ## Licença

@@ -115,7 +115,7 @@
           </a>
         </div>
 
-        <p class="version-line">Versão mais recente no NuGet: <strong data-nuget-version>1.0.4</strong></p>
+        <p class="version-line">Versão mais recente no NuGet: <strong data-nuget-version>1.0.5</strong></p>
       </div>
 
       <div class="hero-visual" data-reveal>
@@ -207,8 +207,8 @@
           <span class="card-icon">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h7v4H4zM13 13h7v4h-7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M11 9h2v6h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </span>
-          <h3>Middlewares prontos</h3>
-          <p><code>TraceIdMiddleware</code>, logging de exceções e log de requisição com status, duração e enriquecimentos declarativos ou programáticos (ex.: tenant).</p>
+          <h3>Middlewares e handler prontos</h3>
+          <p><code>TraceIdMiddleware</code>, logging de exceções, log de requisição e um <code>IExceptionHandler</code> que responde <code>ProblemDetails</code> com <code>traceId</code>.</p>
         </article>
       </div>
     </section>
@@ -248,7 +248,8 @@
         <div class="tab-list" role="tablist" aria-label="Exemplos de configuração">
           <button class="tab is-active" type="button" role="tab" id="tab-min" aria-selected="true" aria-controls="panel-min" data-tab="min">Program.cs (mínimo)</button>
           <button class="tab" type="button" role="tab" id="tab-program" aria-selected="false" aria-controls="panel-program" data-tab="program" tabindex="-1">Program.cs (com enriquecimento)</button>
-          <button class="tab" type="button" role="tab" id="tab-handler" aria-selected="false" aria-controls="panel-handler" data-tab="handler" tabindex="-1">Handler</button>
+          <button class="tab" type="button" role="tab" id="tab-handler" aria-selected="false" aria-controls="panel-handler" data-tab="handler" tabindex="-1">Handler (embutido)</button>
+          <button class="tab" type="button" role="tab" id="tab-handler-ilogger" aria-selected="false" aria-controls="panel-handler-ilogger" data-tab="handler-ilogger" tabindex="-1">Handler (ILogger)</button>
           <button class="tab" type="button" role="tab" id="tab-config" aria-selected="false" aria-controls="panel-config" data-tab="config" tabindex="-1">appsettings.json</button>
           <button class="tab" type="button" role="tab" id="tab-config-min" aria-selected="false" aria-controls="panel-config-min" data-tab="config-min" tabindex="-1">appsettings mínimo</button>
         </div>
@@ -262,6 +263,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddProblemDetails();
 
 builder.AddStructuredLogging("Minha.Api");
+builder.Services.AddDackelLogExceptionHandling();
 
 var app = builder.Build();
 
@@ -286,6 +288,7 @@ builder.Services.AddProblemDetails();
 builder.AddStructuredLogging("Minha.Api")
     .EnrichStructuredLogging("Tenant", (context, services) =>
         services.GetRequiredService&lt;ITenantProvider&gt;().GetTenant(context));
+builder.Services.AddDackelLogExceptionHandling();
 
 var app = builder.Build();
 
@@ -304,13 +307,41 @@ app.Run();</code></pre>
         <div class="tab-panel" role="tabpanel" id="panel-handler" aria-labelledby="tab-handler" data-panel="handler" hidden>
           <div class="codeblock">
             <button class="copy-btn" type="button" data-copy="code-handler">Copiar</button>
-            <pre><code id="code-handler">logger.LogError(
-    exception,
-    "Falha não tratada ao processar {HttpMethod} {RequestPath}",
-    httpContext.Request.Method,
-    httpContext.Request.Path.Value);</code></pre>
+            <pre><code id="code-handler">builder.Services.AddDackelLogExceptionHandling(options =>
+{
+    // Exceções de negócio em 4xx; o padrão é 500.
+    options.StatusCodeSelector = exception =>
+        exception is ArgumentException ? 400 : 500;
+
+    options.Title = "Erro ao processar a requisição";
+});</code></pre>
           </div>
-          <p class="hint">Se o handler também logar, use <code>ExceptionLoggingMiddleware.WasLogged(httpContext)</code> para evitar duplicidade.</p>
+          <p class="hint">O pacote já implementa o <code>IExceptionHandler</code>: loga uma única vez, adiciona o <code>traceId</code> ao <code>ProblemDetails</code> e não expõe mensagem/stack.</p>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="panel-handler-ilogger" aria-labelledby="tab-handler-ilogger" data-panel="handler-ilogger" hidden>
+          <div class="codeblock">
+            <button class="copy-btn" type="button" data-copy="code-handler-ilogger">Copiar</button>
+            <pre><code id="code-handler-ilogger">public sealed class GlobalExceptionHandler(
+    ILogger&lt;GlobalExceptionHandler&gt; logger) : IExceptionHandler
+{
+    public async ValueTask&lt;bool&gt; TryHandleAsync(
+        HttpContext httpContext,
+        Exception exception,
+        CancellationToken cancellationToken)
+    {
+        logger.LogError(
+            exception,
+            "Falha não tratada ao processar {HttpMethod} {RequestPath}",
+            httpContext.Request.Method,
+            httpContext.Request.Path.Value);
+
+        // ... gravar ProblemDetails e retornar true
+        return true;
+    }
+}</code></pre>
+          </div>
+          <p class="hint">Use o handler embutido <strong>ou</strong> o customizado — registre apenas um. Com o customizado, a exceção do <code>ILogger</code> vira <code>ExceptionChain</code> sanitizada, sem <code>@x</code> cru. Se <code>UseExceptionLogging()</code> estiver no pipeline, verifique <code>ExceptionLoggingMiddleware.WasLogged(httpContext)</code>.</p>
         </div>
 
         <div class="tab-panel" role="tabpanel" id="panel-config" aria-labelledby="tab-config" data-panel="config" hidden>
