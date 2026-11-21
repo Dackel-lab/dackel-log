@@ -6,7 +6,8 @@ namespace Dackel.Log;
 
 /// <summary>
 /// Middleware que adiciona ao escopo de log as propriedades configuradas em
-/// <c>StructuredLogging:Enrichments</c>, tornando-as disponíveis para o log de
+/// <c>StructuredLogging:Enrichments</c> e as registradas por código com
+/// <c>EnrichStructuredLogging()</c>, tornando-as disponíveis para o log de
 /// requisição e para o log de exceções.
 /// </summary>
 /// <remarks>
@@ -26,7 +27,12 @@ public sealed class RequestEnrichmentMiddleware(
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var properties = LogEnrichmentResolver.Resolve(context, options.Value.Enrichments);
+        var structuredLogging = options.Value;
+
+        var properties = LogEnrichmentResolver.Resolve(
+            context,
+            structuredLogging.Enrichments,
+            structuredLogging.ProgrammaticEnrichments);
 
         if (properties.Count == 0)
         {

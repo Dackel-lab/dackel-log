@@ -8,17 +8,23 @@ namespace Dackel.Log;
 /// <remarks>
 /// A sanitização é aplicada às mensagens das exceções antes de serem estruturadas.
 /// Stack traces são preservados integralmente por não conterem dados de entrada do usuário.
+/// <para>
+/// É uma proteção de melhor esforço: reconhece os formatos mais comuns de CPF/CNPJ
+/// (com ou sem máscara/espaços), e-mail, bearer/basic token e pares
+/// <c>chave=valor</c> de credenciais. Dados sensíveis em formatos não previstos
+/// continuam sendo responsabilidade da aplicação.
+/// </para>
 /// </remarks>
 public static class LogSanitizer
 {
     private const string Mask = "***";
 
     private static readonly Regex CnpjRegex = new(
-        @"(?<!\d)\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}(?!\d)",
+        @"(?<!\d)\d{2}[.\s]?\d{3}[.\s]?\d{3}[/.\s]?\d{4}[-.\s]?\d{2}(?!\d)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static readonly Regex CpfRegex = new(
-        @"(?<!\d)\d{3}\.?\d{3}\.?\d{3}-?\d{2}(?!\d)",
+        @"(?<!\d)\d{3}[.\s]?\d{3}[.\s]?\d{3}[-.\s]?\d{2}(?!\d)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static readonly Regex EmailRegex = new(
@@ -29,12 +35,19 @@ public static class LogSanitizer
         @"\bBearer\s+[A-Za-z0-9\-._~+/]+=*",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
+    private static readonly Regex BasicAuthRegex = new(
+        @"\bAuthorization\s*:\s*Basic\s+[A-Za-z0-9+/=]+",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
     private static readonly Regex SecretRegex = new(
-        @"(?i)\b(password|senha|pwd|secret|client[_-]?secret|token|access[_-]?token|refresh[_-]?token|api[_-]?key|authorization)\b\s*[:=]\s*(""[^""]*""|'[^']*'|[^\s,;]+)",
+        @"(?i)\b(password|senha|pwd|passphrase|secret|client[_-]?secret|api[_-]?secret|" +
+        @"private[_-]?key|secret[_-]?key|symmetric[_-]?key|signing[_-]?key|" +
+        @"token|access[_-]?token|refresh[_-]?token|id[_-]?token|security[_-]?token|" +
+        @"api[_-]?key|authorization)\b(?:\s*[:=]\s*|\s+-\s*)(?!basic\b|bearer\b)(""[^""]*""|'[^']*'|[^\s,;]+)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     /// <summary>
-    /// Mascara CPF, CNPJ, e-mails, bearer tokens e pares chave/valor sensíveis.
+    /// Mascara CPF, CNPJ, e-mails, bearer/basic tokens e pares chave/valor sensíveis.
     /// </summary>
     /// <param name="value">Texto original. Pode ser <c>null</c> ou vazio.</param>
     /// <returns>Texto sanitizado, ou o próprio valor quando não há o que mascarar.</returns>
@@ -51,6 +64,7 @@ public static class LogSanitizer
         sanitized = CpfRegex.Replace(sanitized, Mask);
         sanitized = EmailRegex.Replace(sanitized, Mask);
         sanitized = BearerTokenRegex.Replace(sanitized, $"Bearer {Mask}");
+        sanitized = BasicAuthRegex.Replace(sanitized, $"Authorization: Basic {Mask}");
         sanitized = SecretRegex.Replace(sanitized, match => $"{match.Groups[1].Value}={Mask}");
 
         return sanitized;

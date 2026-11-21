@@ -7,19 +7,17 @@ namespace Dackel.Log;
 /// </summary>
 internal sealed class StructuredLoggingOptionsValidator : IValidateOptions<StructuredLoggingOptions>
 {
-    private const int MaxPropertyNameLength = 64;
-
     public ValidateOptionsResult Validate(string? name, StructuredLoggingOptions options)
     {
         var failures = new List<string>();
 
         foreach (var (propertyName, expressionValue) in options.Enrichments)
         {
-            if (!IsValidPropertyName(propertyName))
+            if (!EnrichmentPropertyName.IsValid(propertyName))
             {
                 failures.Add(
                     $"StructuredLogging:Enrichments: nome de propriedade inválido '{propertyName}'. " +
-                    $"Use letras, números, '_', '-' ou '.', começando por letra ou '_' (máx. {MaxPropertyNameLength}).");
+                    $"Use letras, números, '_', '-' ou '.', começando por letra ou '_' (máx. {EnrichmentPropertyName.MaxLength}).");
                 continue;
             }
 
@@ -53,24 +51,25 @@ internal sealed class StructuredLoggingOptionsValidator : IValidateOptions<Struc
             }
         }
 
+        foreach (var propertyName in options.ProgrammaticEnrichments.Keys)
+        {
+            if (!EnrichmentPropertyName.IsValid(propertyName))
+            {
+                failures.Add(
+                    $"StructuredLogging:Enrichments (programático): nome de propriedade inválido '{propertyName}'. " +
+                    $"Use letras, números, '_', '-' ou '.', começando por letra ou '_' (máx. {EnrichmentPropertyName.MaxLength}).");
+                continue;
+            }
+
+            if (SensitiveLogNames.IsSensitiveProperty(propertyName))
+            {
+                failures.Add(
+                    $"StructuredLogging:Enrichments (programático): a propriedade '{propertyName}' é sensível e não pode ser enriquecida.");
+            }
+        }
+
         return failures.Count == 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);
-    }
-
-    private static bool IsValidPropertyName(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name) || name.Length > MaxPropertyNameLength)
-        {
-            return false;
-        }
-
-        if (!char.IsLetter(name[0]) && name[0] != '_')
-        {
-            return false;
-        }
-
-        return name.All(character =>
-            char.IsLetterOrDigit(character) || character is '_' or '-' or '.');
     }
 }

@@ -139,7 +139,11 @@ coverage/
 !.env.sample
 *.pem
 *.key
+*.pfx
+*.p12
+*.jks
 secrets.json
+appsettings.*.local.json
 
 # ------------------------------------------------------------
 # Editores / IDEs

@@ -60,6 +60,26 @@ customizado, atualize:
 ## Detalhes
 
 - O tema é aplicado antes da primeira pintura por um script inline mínimo; a lógica principal fica em `main.ts`.
-- A versão exibida é buscada da API do NuGet (`dackel-log`), com fallback para `1.0.0` enquanto o pacote não estiver publicado.
-- `_headers` adiciona cabeçalhos de segurança e cache para `/assets/*`.
+- A versão exibida é buscada da API do NuGet (`dackel-log`), com fallback para `1.0.2` enquanto o pacote não estiver publicado.
+- `_headers` adiciona cabeçalhos de segurança (CSP, HSTS, `nosniff`, `X-Frame-Options`) e cache para `/assets/*`.
 - Sem fontes externas, sem CDN e sem cookies.
+
+## Content Security Policy
+
+O `_headers` usa `script-src` com hashes SHA-256 dos scripts inline de
+`public/index.html`. Ao editar o script de tema ou o JSON-LD, recalcule:
+
+```bash
+cd site
+node -e '
+const fs = require("fs"), crypto = require("crypto");
+const html = fs.readFileSync("public/index.html", "utf8");
+const re = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g;
+let match;
+while ((match = re.exec(html))) {
+  console.log("sha256-" + crypto.createHash("sha256").update(match[1], "utf8").digest("base64"));
+}'
+```
+
+Copie os valores para `script-src` em `public/_headers`. O `connect-src` já
+permite a chamada à API do NuGet.

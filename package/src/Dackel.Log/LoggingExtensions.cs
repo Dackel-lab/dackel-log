@@ -18,7 +18,7 @@ public static class LoggingExtensions
     /// <summary>
     /// Nome lógico padrão da aplicação enviado em todos os eventos.
     /// </summary>
-    public const string DefaultApplicationName = "S303.ControlePassivo.Api";
+    public const string DefaultApplicationName = "Dackel.Log";
 
     /// <summary>
     /// Registra o Serilog, as opções de logging de exceções e os serviços do componente.
@@ -92,6 +92,69 @@ public static class LoggingExtensions
     }
 
     /// <summary>
+    /// Registra um enriquecimento programático: o valor da propriedade é obtido
+    /// por código a cada requisição, em vez de vir do <c>appsettings</c>.
+    /// </summary>
+    /// <param name="builder">Builder da aplicação.</param>
+    /// <param name="propertyName">
+    /// Nome da propriedade no log (ex.: <c>Tenant</c>).
+    /// </param>
+    /// <param name="valueFactory">
+    /// Fábrica do valor. Recebe o <see cref="HttpContext"/> e o provedor de serviços
+    /// do escopo, permitindo resolver serviços da aplicação (ex.: um provedor de tenant).
+    /// </param>
+    /// <returns>O próprio builder, para encadeamento.</returns>
+    /// <remarks>
+    /// Chame depois de <c>AddStructuredLogging()</c> e registre
+    /// <c>UseRequestEnrichment()</c> no pipeline. Enriquecimentos programáticos
+    /// têm precedência sobre os declarados em <c>StructuredLogging:Enrichments</c>.
+    /// <para>Exemplo:</para>
+    /// <code>
+    /// builder.AddStructuredLogging("Minha.Api")
+    ///     .EnrichStructuredLogging("Tenant", (context, services) =>
+    ///         services.GetRequiredService&lt;ITenantProvider&gt;().CurrentTenant);
+    /// </code>
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// Quando <paramref name="propertyName"/> é inválido ou representa um dado sensível.
+    /// </exception>
+    public static WebApplicationBuilder EnrichStructuredLogging(
+        this WebApplicationBuilder builder,
+        string propertyName,
+        StructuredEnrichmentFactory valueFactory)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        ArgumentNullException.ThrowIfNull(valueFactory);
+
+        builder.Services
+            .AddOptions<StructuredLoggingOptions>()
+            .Configure(options => options.AddEnrichment(propertyName, valueFactory));
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Sobrecarga de conveniência para enriquecimentos que dependem apenas do
+    /// <see cref="HttpContext"/>.
+    /// </summary>
+    /// <param name="builder">Builder da aplicação.</param>
+    /// <param name="propertyName">Nome da propriedade no log.</param>
+    /// <param name="valueFactory">Fábrica do valor, executada por requisição.</param>
+    /// <returns>O próprio builder, para encadeamento.</returns>
+    public static WebApplicationBuilder EnrichStructuredLogging(
+        this WebApplicationBuilder builder,
+        string propertyName,
+        Func<HttpContext, string?> valueFactory)
+    {
+        ArgumentNullException.ThrowIfNull(valueFactory);
+
+        return builder.EnrichStructuredLogging(
+            propertyName,
+            (context, _) => valueFactory(context));
+    }
+
+    /// <summary>
     /// Adiciona o middleware que garante <c>X-Trace-Id</c> em todas as respostas
     /// e injeta o trace id no <c>LogContext</c>.
     /// </summary>
@@ -106,7 +169,8 @@ public static class LoggingExtensions
 
     /// <summary>
     /// Adiciona ao <c>LogContext</c> as propriedades configuradas em
-    /// <c>StructuredLogging:Enrichments</c> (ex.: matrícula, tenant, unidade).
+    /// <c>StructuredLogging:Enrichments</c> e as registradas por código com
+    /// <c>EnrichStructuredLogging()</c> (ex.: matrícula, tenant, unidade).
     /// </summary>
     /// <param name="app">Pipeline da aplicação.</param>
     /// <returns>O próprio pipeline, para encadeamento.</returns>

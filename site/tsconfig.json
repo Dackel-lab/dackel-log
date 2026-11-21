@@ -7,7 +7,7 @@
     "outDir": "dist/assets",
     "rootDir": "src",
     "strict": true,
-    "sourceMap": true,
+    "sourceMap": false,
     "declaration": false,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,

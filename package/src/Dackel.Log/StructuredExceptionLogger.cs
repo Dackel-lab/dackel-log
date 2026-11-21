@@ -55,8 +55,29 @@ public sealed class StructuredExceptionLogger(
         using (logger.BeginScope(scope))
         {
             // Sem exceção anexada: evita o @x com mensagem/stack cru, que pode conter PII/segredos.
-            logger.Log(level, exception: null, messageTemplate, args ?? []);
+            logger.Log(level, exception: null, messageTemplate, SanitizeArgs(args));
         }
+    }
+
+    private static object?[] SanitizeArgs(object?[]? args)
+    {
+        if (args is null || args.Length == 0)
+        {
+            return [];
+        }
+
+        var sanitized = new object?[args.Length];
+
+        for (var index = 0; index < args.Length; index++)
+        {
+            // Apenas strings são sanitizadas: números, datas e objetos de domínio
+            // mantêm o formato estruturado esperado pela plataforma de logs.
+            sanitized[index] = args[index] is string text
+                ? LogSanitizer.Sanitize(text)
+                : args[index];
+        }
+
+        return sanitized;
     }
 
     /// <summary>
