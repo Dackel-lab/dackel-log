@@ -7,7 +7,7 @@ namespace Dackel.Log;
 /// A seção <c>StructuredLogging:Enrichments</c> mapeia o nome da propriedade de log
 /// para uma expressão de origem declarativa. Origens suportadas: <c>Claim:&lt;tipo&gt;</c>,
 /// <c>Header:&lt;nome&gt;</c>, <c>Item:&lt;chave&gt;</c> e <c>User:Name</c>.
-/// Exemplo: <c>"Matricula": "User:Name"</c>.
+/// Exemplo: <c>"Usuario": "User:Name"</c>.
 /// <para>
 /// Valores calculados em código (ex.: tenant obtido de um serviço da aplicação)
 /// devem ser registrados com <see cref="AddEnrichment"/> ou com a extensão

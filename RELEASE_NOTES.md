@@ -1,6 +1,49 @@
 # Release Notes — Dackel.Log
 
 
+## [1.0.5] - 2026-11-21
+
+### Adicionado
+
+- `DackelLogExceptionHandler`: `IExceptionHandler` embutido que registra a exceção
+  uma única vez (respeitando `WasLogged`) e responde `ProblemDetails` com
+  `status`, `title`, `instance` e `traceId` igual ao `X-Trace-Id`.
+- `AddDackelLogExceptionHandling()` para registrar o handler e o serviço de
+  `ProblemDetails` com uma linha.
+- `DackelLogExceptionHandlerOptions` com `StatusCodeSelector` (padrão `500`) e
+  `Title` para personalizar a resposta.
+- `ProblemDetails.extensions.traceId` é mantido igual ao header `X-Trace-Id`,
+  preservando `CustomizeProblemDetails` da aplicação.
+
+### Segurança
+
+- O corpo do `ProblemDetails` não inclui `exception.Message` nem stack trace;
+  o detalhe permanece somente no log estruturado.
+
+## [1.0.4] - 2026-11-21
+
+### Alterado
+
+- Exemplos de enriquecimento passam a usar `Usuario` (`"Usuario": "User:Name"`)
+  em vez de `Matricula`, no README e na documentação XML.
+
+## [1.0.3] - 2026-11-21
+
+### Adicionado
+
+- Suporte a `ILogger.LogError(exception, ...)` e `Serilog.Log.Error(exception, ...)`
+  em handlers: a exceção anexada ao evento é convertida automaticamente em
+  `ExceptionChain` sanitizada, respeitando `ExceptionLogging:MaxDepth`.
+- O console JSON do pacote omite o campo `@x` (exceção crua) quando o evento tem
+  exceção; a informação segura fica em `ExceptionChain`.
+
+### Alterado
+
+- `ExceptionChainEnricher` usa o `ExceptionChainCollector` do DI, garantindo a
+  profundidade configurada também no caminho `ILogger`.
+- `SanitizedCompactJsonFormatter` substitui o `CompactJsonFormatter` no sink de
+  console do pacote.
+
 ## [1.0.2] - 2026-11-21
 
 ### Corrigido (segurança)
