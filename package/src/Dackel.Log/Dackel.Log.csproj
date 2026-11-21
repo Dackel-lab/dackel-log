@@ -6,7 +6,6 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- Normaliza caminhos no PDB para não expor usuário/estrutura da máquina de build. -->
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
 
     <IsPackable>true</IsPackable>
