@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Globalization;
 using System.Reflection;
 using Serilog.Core;
 using Serilog.Events;
@@ -9,10 +10,15 @@ namespace Dackel.Log;
 /// Política de destructuring do Serilog que substitui propriedades sensíveis por <c>***</c>.
 /// </summary>
 /// <remarks>
-/// A política atua apenas em objetos de configuração/opções da aplicação
-/// (<c>*Settings</c>, <c>*Options</c>, <c>*Configuration</c>, <c>*Credentials</c>).
+/// A política atua em objetos de configuração/opções da aplicação
+/// (<c>*Settings</c>, <c>*Options</c>, <c>*Configuration</c>, <c>*Credentials</c>),
+/// independentemente do namespace, e em dicionários (chaves sensíveis são mascaradas).
 /// Ela não força o destructuring de entidades de domínio, DTOs ou comandos —
 /// isso evita exposição de PII e efeitos colaterais como lazy loading do EF Core.
+/// <para>
+/// A redaction só ocorre quando o objeto é logado com destructuring explícito
+/// (ex.: <c>{@Options}</c>).
+/// </para>
 /// </remarks>
 public sealed class SensitiveDataDestructuringPolicy : IDestructuringPolicy
 {
@@ -28,6 +34,12 @@ public sealed class SensitiveDataDestructuringPolicy : IDestructuringPolicy
 
         try
         {
+            if (value is IDictionary dictionary)
+            {
+                result = MaskSensitiveEntries(dictionary, propertyValueFactory);
+                return true;
+            }
+
             if (!ShouldInspect(value))
             {
                 return false;
@@ -46,10 +58,33 @@ public sealed class SensitiveDataDestructuringPolicy : IDestructuringPolicy
         }
         catch
         {
-            // Uma política de log nunca deve derrubar a aplicação.
-            result = null!;
-            return false;
+            // Fail-closed: se a inspeção falhar, mascara o objeto inteiro em vez
+            // de cair no destructuring padrão e vazar o valor original.
+            result = new ScalarValue(Mask);
+            return true;
         }
+    }
+
+    private static StructureValue MaskSensitiveEntries(
+        IDictionary dictionary,
+        ILogEventPropertyValueFactory propertyValueFactory)
+    {
+        var properties = new List<LogEventProperty>(dictionary.Count);
+
+        foreach (DictionaryEntry entry in dictionary)
+        {
+            var key = Convert.ToString(entry.Key, CultureInfo.InvariantCulture) ?? "?";
+
+            var isSensitive = !string.IsNullOrWhiteSpace(key) && SensitiveLogNames.IsSensitiveProperty(key);
+
+            properties.Add(new LogEventProperty(
+                key,
+                isSensitive
+                    ? new ScalarValue(Mask)
+                    : propertyValueFactory.CreatePropertyValue(entry.Value, destructureObjects: true)));
+        }
+
+        return new StructureValue(properties);
     }
 
     private static LogEventProperty ToLogEventProperty(
@@ -88,15 +123,6 @@ public sealed class SensitiveDataDestructuringPolicy : IDestructuringPolicy
         var type = value.GetType();
 
         if (type.IsPrimitive || type.IsEnum || type.IsValueType)
-        {
-            return false;
-        }
-
-        var @namespace = type.Namespace;
-
-        if (@namespace is null ||
-            (!@namespace.StartsWith("BN.", StringComparison.Ordinal) &&
-             !@namespace.StartsWith("BNB.", StringComparison.Ordinal)))
         {
             return false;
         }

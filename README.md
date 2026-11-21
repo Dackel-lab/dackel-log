@@ -15,14 +15,15 @@ Site: https://dackel-log.pages.dev
 - **Problem-free logging:** não anexa a exceção crua como `@x`; a mensagem/stack pode conter PII ou segredos.
 - **Cadeia recursiva:** registra `InnerException` e `AggregateException` em `ExceptionChain` estruturado, com profundidade configurável (padrão 10) e proteção contra ciclos.
 - **Correlação:** `X-Trace-Id` em todas as respostas (sucesso e erro), com o mesmo valor no log e no `ProblemDetails`.
-- **Sanitização:** mascara CPF/CNPJ, e-mail, bearer token e pares `password=...` nas mensagens.
-- **Redaction de configuração:** mascara propriedades sensíveis em objetos `*Settings`, `*Options`, `*Configuration` e `*Credentials`.
+- **Tenant programático:** enriquecimento calculado por código a cada requisição (`EnrichStructuredLogging`), com precedência sobre o `appsettings`.
+- **Sanitização:** mascara CPF/CNPJ (com ou sem pontuação/espaços), e-mail, bearer/basic token e pares `chave=valor` de credenciais nas mensagens de exceção e nos argumentos de log.
+- **Redaction de configuração:** mascara propriedades sensíveis em objetos `*Settings`, `*Options`, `*Configuration`, `*Credentials` e em dicionários, em qualquer namespace (aplicada a objetos logados com destructuring, ex.: `{@Options}`).
 - **Console JSON:** `CompactJsonFormatter` no `stdout`, pronto para coleta por Grafana/Datadog.
 - **Sem duplicidade:** suprime o log cru do `ExceptionHandlerMiddleware` por padrão.
 
 ## Requisitos
 
-- .NET 8 (`net8.0`) ou .NET 10 (`net10.0`)
+- .NET 8 (`net8.0`) ou .NET 10 (`net10.0`) — atenção: `net8.0` está fora do suporte desde 10/11/2026 e não recebe correções de segurança do framework; prefira `net10.0`.
 - ASP.NET Core 8 ou 10
 - `Serilog.AspNetCore` (8.0.3 em net8; 11.0.0 em net10) e `Serilog.Formatting.Compact` 3.x como dependências transitivas
 
@@ -31,7 +32,7 @@ Site: https://dackel-log.pages.dev
 | TFM | Status | Asset no pacote |
 |---|---|---|
 | `net10.0` | **Suportado** (LTS até nov/2028) | `lib/net10.0` |
-| `net8.0` | Compatibilidade (LTS encerrado em 10/11/2026) | `lib/net8.0` |
+| `net8.0` | Compatibilidade (sem patches desde 10/11/2026) | `lib/net8.0` |
 
 > `net6.0` e `net7.0` **não são suportados** (EOL desde 2024).
 
@@ -44,7 +45,7 @@ dotnet add package Dackel.Log
 Versão específica:
 
 ```bash
-dotnet add package Dackel.Log --version 1.0.0
+dotnet add package Dackel.Log --version 1.0.2
 ```
 
 ## Início rápido
@@ -55,7 +56,11 @@ using Dackel.Log;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
-builder.AddStructuredLogging("Minha.Api");
+
+builder.AddStructuredLogging("Minha.Api")
+    // Tenant resolvido por código (serviço da aplicação), a cada requisição.
+    .EnrichStructuredLogging("Tenant", (context, services) =>
+        services.GetRequiredService<ITenantProvider>().GetTenant(context));
 
 var app = builder.Build();
 
@@ -74,7 +79,7 @@ app.Run();
 | Ordem | Middleware | Motivo |
 |---|---|---|
 | 1 | `UseTraceId()` | Precisa ser o mais externo para garantir `X-Trace-Id` mesmo em erro |
-| 2 | `UseRequestEnrichment()` | Adiciona as propriedades de `StructuredLogging:Enrichments` ao escopo |
+| 2 | `UseRequestEnrichment()` | Adiciona as propriedades declaradas em `StructuredLogging:Enrichments` e as registradas via `EnrichStructuredLogging()` (ex.: tenant) ao escopo |
 | 3 | `UseStructuredRequestLogging()` | Registra status/duração sem anexar a exceção crua |
 | 4 | `UseExceptionHandler()` | Converte a exceção em `ProblemDetails` |
 | 5 | `UseExceptionLogging()` | Loga a cadeia sanitizada e repropaga ao handler |
@@ -88,8 +93,7 @@ app.Run();
   },
   "StructuredLogging": {
     "Enrichments": {
-      "Matricula": "User:Name",
-      "Tenant": "Header:X-Tenant"
+      "Matricula": "User:Name"
     }
   },
   "Serilog": {
@@ -108,10 +112,35 @@ app.Run();
 ```
 
 - `ExceptionLogging:MaxDepth`: profundidade da cadeia (1–50, padrão **10**). Ao exceder, `ExceptionTruncated` é `true`.
-- `StructuredLogging:Enrichments`: propriedades adicionadas ao log de toda requisição. Exemplo acima: `Matricula` a partir de `User.Identity.Name` e `Tenant` do header `X-Tenant`.
+- `StructuredLogging:Enrichments`: propriedades declarativas adicionadas ao log de toda requisição. Exemplo acima: `Matricula` a partir de `User.Identity.Name`. O **tenant** normalmente é obtido por código — veja [Enriquecimento programático](#enriquecimento-programático-tenant).
 - **Não** declare `Serilog:WriteTo` no `appsettings`: o sink de console JSON é definido pelo pacote. Declarar novamente gera eventos duplicados.
 
-### Enriquecimento configurável
+### Enriquecimento programático (tenant)
+
+Quando o valor não vem diretamente da requisição (o caso típico de tenant: resolvido por um serviço, cache ou repositório), registre-o em código. O valor é calculado uma vez por requisição e entra no mesmo escopo de log do `TraceId`:
+
+```csharp
+builder.AddStructuredLogging("Minha.Api")
+    .EnrichStructuredLogging("Tenant", (context, services) =>
+        services.GetRequiredService<ITenantProvider>().GetTenant(context));
+```
+
+Também há a sobrecarga que recebe apenas o `HttpContext`:
+
+```csharp
+builder.AddStructuredLogging("Minha.Api")
+    .EnrichStructuredLogging("Tenant", context => context.Items["tenant"] as string);
+```
+
+Regras:
+
+- A fábrica roda por requisição, **depois** de `UseTraceId()` e **antes** do log HTTP; a propriedade aparece no log de requisição e no de exceções.
+- Enriquecimentos programáticos **têm precedência** sobre os declarados em `StructuredLogging:Enrichments` com o mesmo nome.
+- O valor passa pelo `LogSanitizer` e é truncado em 1024 caracteres.
+- Nomes inválidos ou sensíveis lançam `ArgumentException` no startup (e também falham na validação de opções).
+- Se a fábrica lançar exceção, a propriedade é omitida e a requisição continua — logging não derruba a API.
+
+### Enriquecimento declarativo
 
 | Origem | Exemplo | Valor |
 |---|---|---|
@@ -124,7 +153,7 @@ Regras de segurança:
 
 - Propriedades com nomes sensíveis (`Password`, `Token`, `Cpf`, `Cnpj`, `Authorization` etc.) são **rejeitadas no startup**.
 - Headers sensíveis (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`, `Proxy-Authorization`) são rejeitados.
-- Valores são sanitizados pelo `LogSanitizer` e truncados em 1024 caracteres.
+- Valores declarativos e programáticos são sanitizados pelo `LogSanitizer` e truncados em 1024 caracteres.
 - A configuração é validada com `ValidateOnStart()`; erro de configuração derruba a aplicação na inicialização.
 
 ## Uso no handler de exceções
@@ -168,7 +197,7 @@ if (!ExceptionLoggingMiddleware.WasLogged(httpContext))
   "HttpMethod": "GET",
   "RequestPath": "/api/v1/contratos/123",
   "TraceId": "9f1c2b3d4e5f60718293a4b5c6d7e8f9",
-  "Tenant": "s303",
+  "Tenant": "acme company",
   "ExceptionChain": [
     {
       "Depth": 0,
@@ -185,13 +214,13 @@ if (!ExceptionLoggingMiddleware.WasLogged(httpContext))
 }
 ```
 
-> `Tenant` é um exemplo de propriedade adicionada por `StructuredLogging:Enrichments`; sem configuração, apenas `TraceId`, `RequestId`, `RequestPath` e os campos da exceção são emitidos.
+> `Tenant` é um exemplo de propriedade adicionada por enriquecimento programático (`EnrichStructuredLogging`); sem configuração nem registro no código, apenas `TraceId`, `RequestId`, `RequestPath` e os campos da exceção são emitidos.
 
 ## Consultando erros
 
 - O cliente recebe `X-Trace-Id` em **toda** resposta; em erros, o mesmo valor está em `ProblemDetails.extensions.traceId`.
 - A plataforma de observabilidade (Grafana/Datadog) indexa `TraceId`, permitindo localizar todos os eventos da requisição.
-- Propriedades como matrícula, tenant ou unidade podem ser adicionadas via `StructuredLogging:Enrichments`; nomes sensíveis são rejeitados na validação.
+- Propriedades como matrícula ou unidade podem ser adicionadas via `StructuredLogging:Enrichments`; o tenant, por depender de serviços da aplicação, deve ser registrado com `EnrichStructuredLogging("Tenant", ...)`. Nomes sensíveis são rejeitados na validação.
 
 ## Estrutura do pacote
 
@@ -199,7 +228,9 @@ if (!ExceptionLoggingMiddleware.WasLogged(httpContext))
 |---|---|
 | `LoggingExtensions.cs` | `AddStructuredLogging()`, `UseTraceId()`, `UseRequestEnrichment()`, `UseStructuredRequestLogging()`, `UseExceptionLogging()` |
 | `TraceIdMiddleware.cs` | `X-Trace-Id`, `LogContext` e `HttpContext.Items` |
-| `RequestEnrichmentMiddleware.cs` | Propriedades configuráveis no escopo de log |
+| `RequestEnrichmentMiddleware.cs` | Propriedades declarativas e programáticas no escopo de log |
+| `StructuredEnrichmentFactory.cs` | Fábrica do valor de um enriquecimento programático |
+| `EnrichmentPropertyName.cs` | Validação compartilhada do nome da propriedade |
 | `StructuredLoggingOptions.cs` | Seção `StructuredLogging:Enrichments` |
 | `LogEnrichmentResolver.cs` | Resolve `Claim`, `Header`, `Item` e `User:Name` |
 | `ExceptionLoggingMiddleware.cs` | Log de exceção não tratada + `WasLogged()` |
@@ -207,7 +238,8 @@ if (!ExceptionLoggingMiddleware.WasLogged(httpContext))
 | `ExceptionChainCollector.cs` | Coleta recursiva com `MaxDepth` e proteção contra ciclo |
 | `ExceptionChainEnricher.cs` | Adiciona a cadeia como objetos estruturados |
 | `LogSanitizer.cs` | Sanitização de PII/segredos nas mensagens |
-| `SensitiveDataDestructuringPolicy.cs` | Redaction de propriedades sensíveis |
+| `SensitiveDataDestructuringPolicy.cs` | Redaction de propriedades e chaves de dicionário sensíveis (qualquer namespace) |
+| `SensitiveLogNames.cs` | Lista de propriedades/headers sensíveis (comparação normalizada) |
 
 ## Publicação (mantenedores)
 
@@ -216,11 +248,11 @@ O projeto tem solution própria (`Dackel.Log.sln`), independente da solution con
 ```bash
 dotnet pack Dackel.Log.sln -c Release -o ./artifacts
 
-dotnet nuget push ./artifacts/Dackel.Log.1.0.0.nupkg \
+dotnet nuget push ./artifacts/Dackel.Log.1.0.2.nupkg \
   --api-key "$NUGET_API_KEY" \
   --source https://api.nuget.org/v3/index.json
 
-dotnet nuget push ./artifacts/Dackel.Log.1.0.0.snupkg \
+dotnet nuget push ./artifacts/Dackel.Log.1.0.2.snupkg \
   --api-key "$NUGET_API_KEY" \
   --source https://api.nuget.org/v3/index.json
 ```
@@ -229,8 +261,16 @@ dotnet nuget push ./artifacts/Dackel.Log.1.0.0.snupkg \
 - A API key deve ser criada em https://www.nuget.org/account/apikeys com escopo **Push new packages and package versions**.
 - Use `--skip-duplicate` se o pipeline puder repetir a publicação.
 
+## Notas de segurança
+
+- **Tenant e campos de auditoria:** obtenha por código com `EnrichStructuredLogging()`, a partir de claims autenticadas ou serviço confiável. Não use `Header:` para dados usados em auditoria — headers são controlados pelo cliente.
+- **Trace id:** por padrão o valor vem do `traceparent`/`Activity`; um cliente pode enviar o próprio id. Para auditoria, correlacione também com o `RequestId` gerado pelo servidor.
+- **Sanitização é melhor esforço:** cobre os formatos mais comuns, mas não envie PII/segredos ao log esperando que o filtro os remova.
+- **Redaction:** atua em objetos logados com destructuring (`{@Objeto}`), nos tipos `*Settings`/`*Options`/`*Configuration`/`*Credentials` e em dicionários; `ToString()` padrão não é mascarado.
+- **Configuração do Serilog:** não permita que usuários finais controlem `Serilog__*`/seção `Serilog` do appsettings — ela define sinks e enriquecimentos.
+
 ## Licença
 
 Distribuído sob a licença **MIT**. Consulte o arquivo `LICENSE` incluído no pacote ou https://licenses.nuget.org/MIT.
 
-Copyright (c) 2026 Dackel.Log contributors.
+Copyright (c) 2026 Dackel Lab.

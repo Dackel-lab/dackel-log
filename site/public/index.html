@@ -115,7 +115,7 @@
           </a>
         </div>
 
-        <p class="version-line">Versão mais recente no NuGet: <strong data-nuget-version>1.0.0</strong></p>
+        <p class="version-line">Versão mais recente no NuGet: <strong data-nuget-version>1.0.2</strong></p>
       </div>
 
       <div class="hero-visual" data-reveal>
@@ -130,7 +130,7 @@
           <pre class="terminal-body"><code>{
   <span class="tok-key">"@l"</span>: <span class="tok-str">"Error"</span>,
   <span class="tok-key">"TraceId"</span>: <span class="tok-str">"9f1c2b3d4e5f60718293a4b5c6d7e8f9"</span>,
-  <span class="tok-key">"Tenant"</span>: <span class="tok-str">"s303"</span>,
+  <span class="tok-key">"Tenant"</span>: <span class="tok-str">"acme company"</span>,
   <span class="tok-key">"ExceptionChain"</span>: [
     {
       <span class="tok-key">"Depth"</span>: <span class="tok-num">0</span>,
@@ -149,7 +149,7 @@
           <div class="terminal-footer">
             <span class="chip chip-ok">X-Trace-Id na resposta</span>
             <span class="chip">@x ausente</span>
-            <span class="chip">Enrichments configuráveis</span>
+            <span class="chip">Tenant por código</span>
           </div>
         </div>
       </div>
@@ -208,7 +208,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h7v4H4zM13 13h7v4h-7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M11 9h2v6h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </span>
           <h3>Middlewares prontos</h3>
-          <p><code>TraceIdMiddleware</code>, logging de exceções e log de requisição com status, duração e propriedades de enriquecimento configuráveis.</p>
+          <p><code>TraceIdMiddleware</code>, logging de exceções e log de requisição com status, duração e enriquecimentos declarativos ou programáticos (ex.: tenant).</p>
         </article>
       </div>
     </section>
@@ -258,7 +258,9 @@
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddProblemDetails();
-builder.AddStructuredLogging("Minha.Api");
+builder.AddStructuredLogging("Minha.Api")
+    .EnrichStructuredLogging("Tenant", (context, services) =>
+        services.GetRequiredService&lt;ITenantProvider&gt;().GetTenant(context));
 
 var app = builder.Build();
 
@@ -295,8 +297,7 @@ app.Run();</code></pre>
   },
   "StructuredLogging": {
     "Enrichments": {
-      "Matricula": "User:Name",
-      "Tenant": "Header:X-Tenant"
+      "Matricula": "User:Name"
     }
   },
   "Serilog": {
@@ -310,7 +311,7 @@ app.Run();</code></pre>
   }
 }</code></pre>
           </div>
-          <p class="hint">Não declare <code>Serilog:WriteTo</code>: o sink de console JSON já é definido pelo pacote.</p>
+          <p class="hint">Não declare <code>Serilog:WriteTo</code>: o sink de console JSON já é definido pelo pacote. O <code>Tenant</code> é obtido por código com <code>EnrichStructuredLogging()</code>, não pelo appsettings.</p>
         </div>
       </div>
 
@@ -343,8 +344,8 @@ app.Run();</code></pre>
         </article>
         <article class="config-card" data-reveal>
           <span class="config-key">StructuredLogging:Enrichments</span>
-          <strong>Configurável</strong>
-          <p>Adicione matrícula, tenant ou unidade via <code>Claim</code>, <code>Header</code>, <code>Item</code> ou <code>User:Name</code>. Nomes e headers sensíveis são rejeitados no startup.</p>
+          <strong>Declarativo ou por código</strong>
+          <p>Matrícula e unidade via <code>Claim</code>, <code>Header</code>, <code>Item</code> ou <code>User:Name</code>. Tenant e demais valores de serviço usam <code>EnrichStructuredLogging()</code>. Nomes e headers sensíveis são rejeitados no startup.</p>
         </article>
       </div>
     </section>
@@ -415,7 +416,7 @@ app.Run();</code></pre>
         <a href="https://github.com/Dackel-lab/dackel-log" target="_blank" rel="noopener">GitHub</a>
         <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener">MIT</a>
       </div>
-      <p class="footer-copy">© <span data-year>2026</span> Dackel.Log contributors.</p>
+      <p class="footer-copy">© <span data-year>2026</span> Dackel Lab.</p>
     </div>
   </footer>
 

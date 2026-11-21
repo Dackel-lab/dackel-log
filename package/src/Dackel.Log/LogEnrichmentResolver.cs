@@ -13,16 +13,19 @@ internal static class LogEnrichmentResolver
 
     public static IReadOnlyDictionary<string, object?> Resolve(
         HttpContext context,
-        IReadOnlyDictionary<string, string> enrichments)
+        IReadOnlyDictionary<string, string> configuredEnrichments,
+        IReadOnlyDictionary<string, StructuredEnrichmentFactory> programmaticEnrichments)
     {
-        if (enrichments.Count == 0)
+        if (configuredEnrichments.Count == 0 && programmaticEnrichments.Count == 0)
         {
             return Empty;
         }
 
-        var result = new Dictionary<string, object?>(enrichments.Count, StringComparer.OrdinalIgnoreCase);
+        var result = new Dictionary<string, object?>(
+            configuredEnrichments.Count + programmaticEnrichments.Count,
+            StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (propertyName, expressionValue) in enrichments)
+        foreach (var (propertyName, expressionValue) in configuredEnrichments)
         {
             if (SensitiveLogNames.IsSensitiveProperty(propertyName))
             {
@@ -41,6 +44,34 @@ internal static class LogEnrichmentResolver
             }
 
             var value = Normalize(ResolveValue(context, expression));
+
+            if (value is not null)
+            {
+                result[propertyName] = value;
+            }
+        }
+
+        // Programático tem precedência: sobrescreve o valor declarado na configuração.
+        foreach (var (propertyName, valueFactory) in programmaticEnrichments)
+        {
+            if (SensitiveLogNames.IsSensitiveProperty(propertyName))
+            {
+                continue;
+            }
+
+            string? rawValue;
+
+            try
+            {
+                rawValue = valueFactory(context, context.RequestServices);
+            }
+            catch (Exception)
+            {
+                // Enriquecimento não pode derrubar a requisição.
+                continue;
+            }
+
+            var value = Normalize(rawValue);
 
             if (value is not null)
             {

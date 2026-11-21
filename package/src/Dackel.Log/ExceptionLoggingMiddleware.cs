@@ -23,7 +23,7 @@ public sealed class ExceptionLoggingMiddleware(
     /// <summary>
     /// Chave em <see cref="HttpContext.Items"/> que indica que a exceção já foi logada.
     /// </summary>
-    public const string LoggedItemKey = "__S303ExceptionLogged";
+    public const string LoggedItemKey = "Dackel.Log.ExceptionLogged";
 
     /// <summary>
     /// Template padrão do evento de exceção não tratada.
