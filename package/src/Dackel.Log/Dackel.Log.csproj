@@ -21,13 +21,18 @@
     <RepositoryUrl>https://github.com/Dackel-lab/dackel-log</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://dackel-log.pages.dev</PackageProjectUrl>
-    <PackageReadmeFile>../../README.md</PackageReadmeFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- README da raiz do repositório empacotado na raiz do .nupkg -->
+    <None Include="../../../README.md" Pack="true" PackagePath="\" Link="README.md" />
   </ItemGroup>
 
   <ItemGroup>
