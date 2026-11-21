@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dackel.Log — logging estruturado para .NET sem vazar dados</title>
+  <meta name="description" content="Dackel.Log: logging estruturado para ASP.NET Core com Serilog em JSON, traceId em toda resposta, sanitização de PII e cadeia recursiva de exceções. MIT, .NET 8 e .NET 10.">
+  <meta name="theme-color" content="#070b12">
+  <meta name="color-scheme" content="dark light">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Dackel.Log">
+  <meta property="og:title" content="Dackel.Log — logs estruturados sem vazar dados">
+  <meta property="og:description" content="Logging estruturado para ASP.NET Core: traceId, Problem Details, sanitização de PII e ExceptionChain recursivo.">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Dackel.Log">
+  <meta name="twitter:description" content="Logging estruturado para ASP.NET Core com foco em segurança e observabilidade.">
+
+  <link rel="stylesheet" href="/styles.css">
+  <script>
+    try {
+      var stored = localStorage.getItem('dackel-theme');
+      var prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+      document.documentElement.dataset.theme =
+        stored === 'light' || stored === 'dark' ? stored : (prefersLight ? 'light' : 'dark');
+    } catch (_) { /* mantém o tema padrão */ }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Dackel.Log",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": ".NET 8, .NET 10",
+    "description": "Componente de logging estruturado para APIs .NET com traceId, sanitização de dados sensíveis e cadeia recursiva de exceções.",
+    "codeRepository": "https://github.com/Dackel-lab/dackel-log",
+    "license": "https://opensource.org/licenses/MIT",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL" }
+  }
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
+
+  <div class="page-glow" aria-hidden="true"></div>
+
+  <header class="site-header" data-header>
+    <a class="brand" href="#top" aria-label="Dackel.Log — início">
+      <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+        <defs>
+          <linearGradient id="brand-gradient" x1="6" y1="4" x2="58" y2="60" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#22d3ee"/>
+            <stop offset="0.55" stop-color="#6366f1"/>
+            <stop offset="1" stop-color="#a855f7"/>
+          </linearGradient>
+        </defs>
+        <rect x="5" y="5" width="54" height="54" rx="15" fill="url(#brand-gradient)"/>
+        <path d="M18 23l8.5 9L18 41" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M32 41h14" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-name">Dackel<span class="brand-dot">.Log</span></span>
+    </a>
+
+    <nav class="nav" id="nav" data-nav aria-label="Navegação principal">
+      <a href="#recursos" data-nav-link>Recursos</a>
+      <a href="#uso" data-nav-link>Uso</a>
+      <a href="#configuracao" data-nav-link>Configuração</a>
+      <a href="#compatibilidade" data-nav-link>Compatibilidade</a>
+      <a class="nav-cta" href="https://www.nuget.org/packages/Dackel.Log" target="_blank" rel="noopener">
+        NuGet
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+    </nav>
+
+    <div class="header-actions">
+      <a class="icon-btn" href="https://github.com/Dackel-lab/dackel-log" target="_blank" rel="noopener" aria-label="Repositório no GitHub">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.54 2.87 8.39 6.84 9.75.5.1.68-.22.68-.49v-1.9c-2.78.62-3.37-1.21-3.37-1.21-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.36 1.12 2.93.86.09-.67.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.3 9.3 0 0 1 12 6.84c.85 0 1.71.12 2.51.35 1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.8-4.57 5.06.36.32.68.95.68 1.92v2.85c0 .27.18.59.69.49A10.27 10.27 0 0 0 22 12.26C22 6.58 17.52 2 12 2z" fill="currentColor"/></svg>
+      </a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Alternar tema">
+        <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="icon-btn menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="nav" aria-label="Abrir menu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="conteudo">
+    <section class="hero" id="top">
+      <div class="hero-copy">
+        <span class="eyebrow"><span class="pulse"></span> MIT · .NET 8 &amp; .NET 10 · NuGet</span>
+        <h1>Logs estruturados.<br><span class="gradient-text">Sem vazar dados.</span></h1>
+        <p class="lead">
+          Um componente pronto para ASP.NET Core com <strong>traceId</strong> em toda resposta,
+          <strong>ExceptionChain</strong> recursivo e sanitização de PII e segredos.
+          O erro vira <strong>Problem Details</strong>; o diagnóstico fica no log.
+        </p>
+
+        <div class="install" role="group" aria-label="Comando de instalação">
+          <span class="install-prompt" aria-hidden="true">$</span>
+          <code id="install-command">dotnet add package Dackel.Log</code>
+          <button class="copy-btn" type="button" data-copy="install-command">Copiar</button>
+        </div>
+
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="https://www.nuget.org/packages/Dackel.Log" target="_blank" rel="noopener">
+            Ver no NuGet
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/Dackel-lab/dackel-log" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.54 2.87 8.39 6.84 9.75.5.1.68-.22.68-.49v-1.9c-2.78.62-3.37-1.21-3.37-1.21-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.36 1.12 2.93.86.09-.67.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.3 9.3 0 0 1 12 6.84c.85 0 1.71.12 2.51.35 1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.8-4.57 5.06.36.32.68.95.68 1.92v2.85c0 .27.18.59.69.49A10.27 10.27 0 0 0 22 12.26C22 6.58 17.52 2 12 2z" fill="currentColor"/></svg>
+            GitHub
+          </a>
+        </div>
+
+        <p class="version-line">Versão mais recente no NuGet: <strong data-nuget-version>1.0.0</strong></p>
+      </div>
+
+      <div class="hero-visual" data-reveal>
+        <div class="terminal">
+          <div class="terminal-bar">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-yellow"></span>
+            <span class="dot dot-green"></span>
+            <span class="terminal-title">trace.json</span>
+            <span class="terminal-live">live</span>
+          </div>
+          <pre class="terminal-body"><code>{
+  <span class="tok-key">"@l"</span>: <span class="tok-str">"Error"</span>,
+  <span class="tok-key">"TraceId"</span>: <span class="tok-str">"9f1c2b3d4e5f60718293a4b5c6d7e8f9"</span>,
+  <span class="tok-key">"Tenant"</span>: <span class="tok-str">"s303"</span>,
+  <span class="tok-key">"ExceptionChain"</span>: [
+    {
+      <span class="tok-key">"Depth"</span>: <span class="tok-num">0</span>,
+      <span class="tok-key">"Type"</span>: <span class="tok-str">"InvalidOperationException"</span>,
+      <span class="tok-key">"Message"</span>: <span class="tok-str">"Falha com CPF ***"</span>
+    },
+    {
+      <span class="tok-key">"Depth"</span>: <span class="tok-num">1</span>,
+      <span class="tok-key">"Type"</span>: <span class="tok-str">"ApplicationException"</span>,
+      <span class="tok-key">"Message"</span>: <span class="tok-str">"inner com CNPJ ***"</span>
+    }
+  ],
+  <span class="tok-key">"ExceptionTruncated"</span>: <span class="tok-bool">false</span>,
+  <span class="tok-key">"ExceptionDepthLimit"</span>: <span class="tok-num">10</span>
+}</code></pre>
+          <div class="terminal-footer">
+            <span class="chip chip-ok">X-Trace-Id na resposta</span>
+            <span class="chip">@x ausente</span>
+            <span class="chip">Enrichments configuráveis</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="recursos">
+      <div class="section-head" data-reveal>
+        <span class="section-kicker">Recursos</span>
+        <h2>Observabilidade sem abrir a porta para vazamentos</h2>
+        <p>O necessário para diagnosticar produção, sem devolver detalhes internos ao cliente.</p>
+      </div>
+
+      <div class="feature-grid">
+        <article class="card" data-reveal>
+          <span class="card-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h4l2-6 4 12 2-6h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <h3>Correlação ponta a ponta</h3>
+          <p><code>X-Trace-Id</code> em toda resposta, inclusive 2xx. Nos erros, o mesmo valor aparece no <code>ProblemDetails</code> e nos logs.</p>
+        </article>
+
+        <article class="card" data-reveal>
+          <span class="card-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          </span>
+          <h3>Cadeia recursiva</h3>
+          <p><code>InnerException</code> e <code>AggregateException</code> serializados como objetos, com <code>MaxDepth</code> configurável e proteção contra ciclos.</p>
+        </article>
+
+        <article class="card" data-reveal>
+          <span class="card-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <h3>Sanitização em duas camadas</h3>
+          <p>CPF, CNPJ, e-mail, bearer token e pares <code>password=...</code> são mascarados antes de chegar ao log ou à cadeia.</p>
+        </article>
+
+        <article class="card" data-reveal>
+          <span class="card-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 9l3 3-3 3M12 15h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <h3>JSON compacto no stdout</h3>
+          <p>Console com <code>CompactJsonFormatter</code>, pronto para coleta automática por Grafana, Datadog ou outro agregador.</p>
+        </article>
+
+        <article class="card" data-reveal>
+          <span class="card-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          </span>
+          <h3>Sem <code>@x</code> cru</h3>
+          <p>A exceção não é anexada como texto bruto. Tipo, mensagem sanitizada e stack trace ficam na cadeia estruturada.</p>
+        </article>
+
+        <article class="card" data-reveal>
+          <span class="card-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h7v4H4zM13 13h7v4h-7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M11 9h2v6h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </span>
+          <h3>Middlewares prontos</h3>
+          <p><code>TraceIdMiddleware</code>, logging de exceções e log de requisição com status, duração e propriedades de enriquecimento configuráveis.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section compare-section">
+      <div class="compare-grid">
+        <article class="compare-card compare-bad" data-reveal>
+          <span class="compare-label">Sem Dackel.Log</span>
+          <h3>Mensagem crua na resposta e no log</h3>
+          <pre><code>System.InvalidOperationException:
+  Falha com CPF 123.456.789-09
+  e password=Segredo123
+  ---&gt; inner com CNPJ 12.345.678/0001-90</code></pre>
+          <p class="compare-note">PII, segredo e detalhes internos expostos.</p>
+        </article>
+
+        <article class="compare-card compare-good" data-reveal>
+          <span class="compare-label">Com Dackel.Log</span>
+          <h3>Cadeia sanitizada e consultável</h3>
+          <pre><code>"ExceptionChain": [
+  { "Depth": 0, "Message": "Falha com CPF ***" },
+  { "Depth": 1, "Message": "inner com CNPJ ***" }
+]</code></pre>
+          <p class="compare-note">Cliente recebe um erro seguro; suporte localiza pelo traceId.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="uso">
+      <div class="section-head" data-reveal>
+        <span class="section-kicker">Início rápido</span>
+        <h2>Quatro linhas no pipeline</h2>
+        <p>Registre o componente e adicione os middlewares na ordem correta.</p>
+      </div>
+
+      <div class="tabs" data-tabs data-reveal>
+        <div class="tab-list" role="tablist" aria-label="Exemplos de configuração">
+          <button class="tab is-active" type="button" role="tab" id="tab-program" aria-selected="true" aria-controls="panel-program" data-tab="program">Program.cs</button>
+          <button class="tab" type="button" role="tab" id="tab-handler" aria-selected="false" aria-controls="panel-handler" data-tab="handler">Handler</button>
+          <button class="tab" type="button" role="tab" id="tab-config" aria-selected="false" aria-controls="panel-config" data-tab="config" tabindex="-1">appsettings.json</button>
+        </div>
+
+        <div class="tab-panel is-active" role="tabpanel" id="panel-program" aria-labelledby="tab-program" data-panel="program">
+          <div class="codeblock">
+            <button class="copy-btn" type="button" data-copy="code-program">Copiar</button>
+            <pre><code id="code-program">using Dackel.Log;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddProblemDetails();
+builder.AddStructuredLogging("Minha.Api");
+
+var app = builder.Build();
+
+app.UseTraceId();
+app.UseRequestEnrichment();
+app.UseStructuredRequestLogging();
+app.UseExceptionHandler();
+app.UseExceptionLogging();
+
+app.MapControllers();
+app.Run();</code></pre>
+          </div>
+          <p class="hint">A ordem importa: o trace id é o mais externo; o log de exceção fica dentro do handler.</p>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="panel-handler" aria-labelledby="tab-handler" data-panel="handler" hidden>
+          <div class="codeblock">
+            <button class="copy-btn" type="button" data-copy="code-handler">Copiar</button>
+            <pre><code id="code-handler">exceptionLogger.LogError(
+    exception,
+    "Falha não tratada ao processar {HttpMethod} {RequestPath}",
+    [httpContext.Request.Method, httpContext.Request.Path.Value],
+    traceId: TraceIdMiddleware.GetTraceId(httpContext));</code></pre>
+          </div>
+          <p class="hint">Se o handler também logar, use <code>ExceptionLoggingMiddleware.WasLogged(httpContext)</code> para evitar duplicidade.</p>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="panel-config" aria-labelledby="tab-config" data-panel="config" hidden>
+          <div class="codeblock">
+            <button class="copy-btn" type="button" data-copy="code-config">Copiar</button>
+            <pre><code id="code-config">{
+  "ExceptionLogging": {
+    "MaxDepth": 10
+  },
+  "StructuredLogging": {
+    "Enrichments": {
+      "Matricula": "User:Name",
+      "Tenant": "Header:X-Tenant"
+    }
+  },
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Microsoft": "Warning",
+        "Microsoft.AspNetCore": "Warning"
+      }
+    }
+  }
+}</code></pre>
+          </div>
+          <p class="hint">Não declare <code>Serilog:WriteTo</code>: o sink de console JSON já é definido pelo pacote.</p>
+        </div>
+      </div>
+
+      <ol class="pipeline" data-reveal aria-label="Ordem dos middlewares">
+        <li><span>1</span><code>UseTraceId()</code></li>
+        <li><span>2</span><code>UseRequestEnrichment()</code></li>
+        <li><span>3</span><code>UseStructuredRequestLogging()</code></li>
+        <li><span>4</span><code>UseExceptionHandler()</code></li>
+        <li><span>5</span><code>UseExceptionLogging()</code></li>
+      </ol>
+    </section>
+
+    <section class="section" id="configuracao">
+      <div class="section-head" data-reveal>
+        <span class="section-kicker">Configuração</span>
+        <h2>Padrões seguros, ajustáveis quando necessário</h2>
+        <p>O comportamento padrão já cobre a maioria dos cenários de produção.</p>
+      </div>
+
+      <div class="config-grid">
+        <article class="config-card" data-reveal>
+          <span class="config-key">ExceptionLogging:MaxDepth</span>
+          <strong>10 níveis</strong>
+          <p>Profundidade da cadeia de exceções. Ao exceder, o evento marca <code>ExceptionTruncated: true</code>. Faixa válida: 1–50.</p>
+        </article>
+        <article class="config-card" data-reveal>
+          <span class="config-key">Sink</span>
+          <strong>Console JSON</strong>
+          <p><code>CompactJsonFormatter</code> no stdout. Não adicione <code>WriteTo</code> no appsettings para evitar eventos duplicados.</p>
+        </article>
+        <article class="config-card" data-reveal>
+          <span class="config-key">StructuredLogging:Enrichments</span>
+          <strong>Configurável</strong>
+          <p>Adicione matrícula, tenant ou unidade via <code>Claim</code>, <code>Header</code>, <code>Item</code> ou <code>User:Name</code>. Nomes e headers sensíveis são rejeitados no startup.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="compatibilidade">
+      <div class="section-head" data-reveal>
+        <span class="section-kicker">Compatibilidade</span>
+        <h2>Feito para o .NET atual</h2>
+        <p>O pacote entrega assets específicos para cada target framework.</p>
+      </div>
+
+      <div class="table-wrap" data-reveal>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">TFM</th>
+              <th scope="col">Status</th>
+              <th scope="col">Asset</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>net10.0</code></td>
+              <td><span class="badge badge-ok">Suportado · LTS</span></td>
+              <td><code>lib/net10.0</code></td>
+            </tr>
+            <tr>
+              <td><code>net8.0</code></td>
+              <td><span class="badge badge-warn">Compatibilidade</span></td>
+              <td><code>lib/net8.0</code></td>
+            </tr>
+            <tr>
+              <td><code>net6.0</code> / <code>net7.0</code></td>
+              <td><span class="badge badge-off">Não suportado</span></td>
+              <td>—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="compat-note">Requer ASP.NET Core 8 ou 10. Licença MIT. Dependências: <code>Serilog.AspNetCore</code> 8.0.3 (net8) / 11.0.0 (net10) e <code>Serilog.Formatting.Compact</code> 3.0.0.</p>
+    </section>
+
+    <section class="cta" data-reveal>
+      <div class="cta-inner">
+        <span class="section-kicker">Comece agora</span>
+        <h2>Logs melhores em um comando.</h2>
+        <div class="install install-large" role="group" aria-label="Comando de instalação">
+          <span class="install-prompt" aria-hidden="true">$</span>
+          <code id="install-cta">dotnet add package Dackel.Log</code>
+          <button class="copy-btn" type="button" data-copy="install-cta">Copiar</button>
+        </div>
+        <div class="hero-actions center">
+          <a class="btn btn-primary" href="https://www.nuget.org/packages/Dackel.Log" target="_blank" rel="noopener">NuGet</a>
+          <a class="btn btn-ghost" href="https://github.com/Dackel-lab/dackel-log" target="_blank" rel="noopener">Ver código</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="brand-name">Dackel<span class="brand-dot">.Log</span></span>
+        <p>Logging estruturado para .NET, feito para produção.</p>
+      </div>
+      <div class="footer-links">
+        <a href="https://www.nuget.org/packages/Dackel.Log" target="_blank" rel="noopener">NuGet</a>
+        <a href="https://github.com/Dackel-lab/dackel-log" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener">MIT</a>
+      </div>
+      <p class="footer-copy">© <span data-year>2026</span> Dackel.Log contributors.</p>
+    </div>
+  </footer>
+
+  <script type="module" src="/assets/main.js"></script>
+</body>
+</html>

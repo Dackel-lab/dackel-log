@@ -1,0 +1,202 @@
+# ------------------------------------------------------------
+# .NET / C# / Visual Studio / Rider
+# ------------------------------------------------------------
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+build/
+bld/
+[Ll]og/
+[Ll]ogs/
+out/
+artifacts/
+BenchmarkDotNet.Artifacts/
+TestResults/
+[Tt]est[Rr]esult*/
+coverage*/
+*.coverage
+*.coveragexml
+*.trx
+*.VisualState.xml
+TestResult.xml
+*.binlog
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.userprefs
+*.cache
+*.pidb
+*.svclog
+*.nupkg
+*.snupkg
+*.symbols.nupkg
+nuget.config.user
+project.lock.json
+project.fragment.lock.json
+.nuget/
+packages/
+!packages/build/
+*.ncb
+*.sdf
+*.opensdf
+*.aps
+*.ilk
+*.obj
+*.iobj
+*.ipdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*.log
+# Exceção: o diretório do projeto se chama "Dackel.Log" e, como o macOS
+# compara nomes sem diferenciar maiúsculas, `*.log` ignoraria a pasta inteira.
+!**/Dackel.Log/
+*.vspscc
+*.vssscc
+.vs/
+*.DotSettings.user
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.[Rr]eSharper.user
+*.sln.iml
+*.received.*
+*.orig
+
+# ------------------------------------------------------------
+# Node.js
+# ------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.npm/
+.pnpm-store/
+.pnp
+.pnp.*
+.yarn/
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.yarn-integrity
+package-lock.json.bak
+npm-shrinkwrap.json.bak
+.eslintcache
+.stylelintcache
+.cache/
+.parcel-cache/
+.nuxt/
+.next/
+.nitro/
+.output/
+.svelte-kit/
+.turbo/
+.vercel/
+.astro/
+.node_repl_history
+
+# ------------------------------------------------------------
+# TypeScript / build de front-end
+# ------------------------------------------------------------
+dist/
+build/
+dist-ssr/
+*.tsbuildinfo
+*.d.ts.map
+out-tsc/
+*.local
+.vite/
+.temp/
+coverage/
+.nyc_output/
+*.lcov
+
+# ------------------------------------------------------------
+# Cloudflare Wrangler (site/)
+# ------------------------------------------------------------
+.wrangler/
+.dev.vars
+
+# ------------------------------------------------------------
+# Environment / secrets
+# ------------------------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+secrets.json
+
+# ------------------------------------------------------------
+# Editores / IDEs
+# ------------------------------------------------------------
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.iml
+*.ipr
+*.iws
+.fleet/
+*.swp
+*.swo
+*~
+.history/
+
+# ------------------------------------------------------------
+# macOS
+# ------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+.fseventsd
+.AppleDouble
+.LSOverride
+Temporary Items
+ehthumbs.db
+Network Trash Folder
+
+# ------------------------------------------------------------
+# Linux
+# ------------------------------------------------------------
+*~
+.directory
+.Trash-*
+.nfs*
+.fuse_hidden*
+*.kate-swp
+core.*
+vgcore.*
+*.pid
+*.seed
+.eggs/
+*.egg-info/
+__pycache__/
+
+# ------------------------------------------------------------
+# Windows (caso o projeto seja usado em outra máquina)
+# ------------------------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.stackdump

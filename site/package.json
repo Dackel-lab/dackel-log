@@ -1,0 +1,16 @@
+{
+  "name": "dackel-log-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Landing page do pacote Dackel.Log",
+  "type": "module",
+  "scripts": {
+    "clean": "node -e \"import('node:fs').then(({ rmSync }) => rmSync('dist', { recursive: true, force: true }))\"",
+    "build": "npm run clean && node scripts/copy-public.mjs && tsc",
+    "preview": "npx --yes serve dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

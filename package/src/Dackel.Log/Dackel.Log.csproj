@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <IsPackable>true</IsPackable>
+    <PackageId>Dackel.Log</PackageId>
+    <AssemblyName>Dackel.Log</AssemblyName>
+    <RootNamespace>Dackel.Log</RootNamespace>
+    <Title>Dackel.Log</Title>
+    <Version>1.0.0</Version>
+    <Authors>Dackel Lab contributors</Authors>
+    <Description>Dackel.Log: componente de logging estruturado para APIs .NET 8 e .NET 10 com Serilog em JSON compacto, correlação por traceId (W3C), sanitização de dados sensíveis, cadeia recursiva de exceções e middlewares de correlação e logging de exceções.</Description>
+    <PackageTags>logging;serilog;observability;tracing;aspnetcore;problem-details</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <RepositoryUrl>https://github.com/Dackel-lab/dackel-log</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://dackel-log.pages.dev</PackageProjectUrl>
+    <PackageReadmeFile>../../README.md</PackageReadmeFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Serilog.Formatting.Compact" Version="3.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PackageReference Include="Serilog.AspNetCore" Version="11.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="..\..\" />
+    <None Include="LICENSE" Pack="true" PackagePath="..\..\" />
+  </ItemGroup>
+
+</Project>
