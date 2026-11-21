@@ -1,6 +1,6 @@
 {
   "name": "dackel-log-site",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "private": true,
   "description": "Landing page do pacote Dackel.Log",
   "type": "module",

@@ -115,7 +115,7 @@
           </a>
         </div>
 
-        <p class="version-line">Versão mais recente no NuGet: <strong data-nuget-version>1.0.2</strong></p>
+        <p class="version-line">Versão mais recente no NuGet: <strong data-nuget-version>1.0.4</strong></p>
       </div>
 
       <div class="hero-visual" data-reveal>
@@ -192,7 +192,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 9l3 3-3 3M12 15h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>
           <h3>JSON compacto no stdout</h3>
-          <p>Console com <code>CompactJsonFormatter</code>, pronto para coleta automática por Grafana, Datadog ou outro agregador.</p>
+          <p>Console com JSON compacto (sem <code>@x</code> cru), pronto para coleta automática por Grafana, Datadog ou outro agregador.</p>
         </article>
 
         <article class="card" data-reveal>
@@ -200,7 +200,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
           </span>
           <h3>Sem <code>@x</code> cru</h3>
-          <p>A exceção não é anexada como texto bruto. Tipo, mensagem sanitizada e stack trace ficam na cadeia estruturada.</p>
+          <p><code>ILogger.LogError(ex, ...)</code> e <code>Log.Error(ex, ...)</code> geram a cadeia estruturada; tipo, mensagem sanitizada e stack trace ficam no JSON, sem o texto bruto do <code>@x</code>.</p>
         </article>
 
         <article class="card" data-reveal>
@@ -240,18 +240,43 @@
     <section class="section" id="uso">
       <div class="section-head" data-reveal>
         <span class="section-kicker">Início rápido</span>
-        <h2>Quatro linhas no pipeline</h2>
-        <p>Registre o componente e adicione os middlewares na ordem correta.</p>
+        <h2>Exemplos de configuração</h2>
+        <p>Do cenário mínimo ao tenant programático — escolha o que a sua API precisa.</p>
       </div>
 
       <div class="tabs" data-tabs data-reveal>
         <div class="tab-list" role="tablist" aria-label="Exemplos de configuração">
-          <button class="tab is-active" type="button" role="tab" id="tab-program" aria-selected="true" aria-controls="panel-program" data-tab="program">Program.cs</button>
-          <button class="tab" type="button" role="tab" id="tab-handler" aria-selected="false" aria-controls="panel-handler" data-tab="handler">Handler</button>
+          <button class="tab is-active" type="button" role="tab" id="tab-min" aria-selected="true" aria-controls="panel-min" data-tab="min">Program.cs (mínimo)</button>
+          <button class="tab" type="button" role="tab" id="tab-program" aria-selected="false" aria-controls="panel-program" data-tab="program" tabindex="-1">Program.cs (com enriquecimento)</button>
+          <button class="tab" type="button" role="tab" id="tab-handler" aria-selected="false" aria-controls="panel-handler" data-tab="handler" tabindex="-1">Handler</button>
           <button class="tab" type="button" role="tab" id="tab-config" aria-selected="false" aria-controls="panel-config" data-tab="config" tabindex="-1">appsettings.json</button>
+          <button class="tab" type="button" role="tab" id="tab-config-min" aria-selected="false" aria-controls="panel-config-min" data-tab="config-min" tabindex="-1">appsettings mínimo</button>
         </div>
 
-        <div class="tab-panel is-active" role="tabpanel" id="panel-program" aria-labelledby="tab-program" data-panel="program">
+        <div class="tab-panel is-active" role="tabpanel" id="panel-min" aria-labelledby="tab-min" data-panel="min">
+          <div class="codeblock">
+            <button class="copy-btn" type="button" data-copy="code-min">Copiar</button>
+            <pre><code id="code-min">using Dackel.Log;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddProblemDetails();
+
+builder.AddStructuredLogging("Minha.Api");
+
+var app = builder.Build();
+
+app.UseTraceId();
+app.UseStructuredRequestLogging();
+app.UseExceptionHandler();
+app.UseExceptionLogging();
+
+app.MapControllers();
+app.Run();</code></pre>
+          </div>
+          <p class="hint">Cenário sem tenant e sem enriquecimentos. <code>UseRequestEnrichment()</code> só é necessário quando houver propriedades declarativas ou programáticas.</p>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="panel-program" aria-labelledby="tab-program" data-panel="program" hidden>
           <div class="codeblock">
             <button class="copy-btn" type="button" data-copy="code-program">Copiar</button>
             <pre><code id="code-program">using Dackel.Log;
@@ -273,17 +298,17 @@ app.UseExceptionLogging();
 app.MapControllers();
 app.Run();</code></pre>
           </div>
-          <p class="hint">A ordem importa: o trace id é o mais externo; o log de exceção fica dentro do handler.</p>
+          <p class="hint">Tenant obtido por código a partir de um serviço. A ordem importa: o trace id é o mais externo; o log de exceção fica dentro do handler.</p>
         </div>
 
         <div class="tab-panel" role="tabpanel" id="panel-handler" aria-labelledby="tab-handler" data-panel="handler" hidden>
           <div class="codeblock">
             <button class="copy-btn" type="button" data-copy="code-handler">Copiar</button>
-            <pre><code id="code-handler">exceptionLogger.LogError(
+            <pre><code id="code-handler">logger.LogError(
     exception,
     "Falha não tratada ao processar {HttpMethod} {RequestPath}",
-    [httpContext.Request.Method, httpContext.Request.Path.Value],
-    traceId: TraceIdMiddleware.GetTraceId(httpContext));</code></pre>
+    httpContext.Request.Method,
+    httpContext.Request.Path.Value);</code></pre>
           </div>
           <p class="hint">Se o handler também logar, use <code>ExceptionLoggingMiddleware.WasLogged(httpContext)</code> para evitar duplicidade.</p>
         </div>
@@ -297,7 +322,7 @@ app.Run();</code></pre>
   },
   "StructuredLogging": {
     "Enrichments": {
-      "Matricula": "User:Name"
+      "Usuario": "User:Name"
     }
   },
   "Serilog": {
@@ -313,11 +338,29 @@ app.Run();</code></pre>
           </div>
           <p class="hint">Não declare <code>Serilog:WriteTo</code>: o sink de console JSON já é definido pelo pacote. O <code>Tenant</code> é obtido por código com <code>EnrichStructuredLogging()</code>, não pelo appsettings.</p>
         </div>
+
+        <div class="tab-panel" role="tabpanel" id="panel-config-min" aria-labelledby="tab-config-min" data-panel="config-min" hidden>
+          <div class="codeblock">
+            <button class="copy-btn" type="button" data-copy="code-config-min">Copiar</button>
+            <pre><code id="code-config-min">{
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Microsoft": "Warning",
+        "Microsoft.AspNetCore": "Warning"
+      }
+    }
+  }
+}</code></pre>
+          </div>
+          <p class="hint">Todas as seções do Dackel.Log são opcionais. Os padrões (<code>MaxDepth: 10</code>, sem enriquecimentos) já são seguros para produção.</p>
+        </div>
       </div>
 
       <ol class="pipeline" data-reveal aria-label="Ordem dos middlewares">
         <li><span>1</span><code>UseTraceId()</code></li>
-        <li><span>2</span><code>UseRequestEnrichment()</code></li>
+        <li><span>2</span><code>UseRequestEnrichment()</code> <small>opcional</small></li>
         <li><span>3</span><code>UseStructuredRequestLogging()</code></li>
         <li><span>4</span><code>UseExceptionHandler()</code></li>
         <li><span>5</span><code>UseExceptionLogging()</code></li>
@@ -340,12 +383,12 @@ app.Run();</code></pre>
         <article class="config-card" data-reveal>
           <span class="config-key">Sink</span>
           <strong>Console JSON</strong>
-          <p><code>CompactJsonFormatter</code> no stdout. Não adicione <code>WriteTo</code> no appsettings para evitar eventos duplicados.</p>
+          <p>JSON compacto no stdout, sem o <code>@x</code> cru. Não adicione <code>WriteTo</code> no appsettings para evitar eventos duplicados.</p>
         </article>
         <article class="config-card" data-reveal>
           <span class="config-key">StructuredLogging:Enrichments</span>
           <strong>Declarativo ou por código</strong>
-          <p>Matrícula e unidade via <code>Claim</code>, <code>Header</code>, <code>Item</code> ou <code>User:Name</code>. Tenant e demais valores de serviço usam <code>EnrichStructuredLogging()</code>. Nomes e headers sensíveis são rejeitados no startup.</p>
+          <p>Usuário e unidade via <code>Claim</code>, <code>Header</code>, <code>Item</code> ou <code>User:Name</code>. Tenant e demais valores de serviço usam <code>EnrichStructuredLogging()</code>. Nomes e headers sensíveis são rejeitados no startup.</p>
         </article>
       </div>
     </section>
@@ -374,7 +417,7 @@ app.Run();</code></pre>
             </tr>
             <tr>
               <td><code>net8.0</code></td>
-              <td><span class="badge badge-warn">Compatibilidade</span></td>
+              <td><span class="badge badge-warn">Compatibilidade · EOL</span></td>
               <td><code>lib/net8.0</code></td>
             </tr>
             <tr>
@@ -385,7 +428,7 @@ app.Run();</code></pre>
           </tbody>
         </table>
       </div>
-      <p class="compat-note">Requer ASP.NET Core 8 ou 10. Licença MIT. Dependências: <code>Serilog.AspNetCore</code> 8.0.3 (net8) / 11.0.0 (net10) e <code>Serilog.Formatting.Compact</code> 3.0.0.</p>
+      <p class="compat-note">Requer ASP.NET Core 8 ou 10. <code>net8.0</code> está fora de suporte desde 10/11/2026 (sem patches de segurança); prefira <code>net10.0</code>. Licença MIT. Dependências: <code>Serilog.AspNetCore</code> 8.0.3 (net8) / 11.0.0 (net10) e <code>Serilog.Formatting.Compact</code> 3.0.0.</p>
     </section>
 
     <section class="cta" data-reveal>

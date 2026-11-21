@@ -5,7 +5,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Events;
-using Serilog.Formatting.Compact;
 
 namespace Dackel.Log;
 
@@ -68,11 +67,13 @@ public static class LoggingExtensions
 
         builder.Host.UseSerilog((context, services, configuration) =>
         {
+            var exceptionChainCollector = services.GetRequiredService<ExceptionChainCollector>();
+
             configuration
                 .ReadFrom.Configuration(context.Configuration)
                 .ReadFrom.Services(services)
                 .Enrich.FromLogContext()
-                .Enrich.With<ExceptionChainEnricher>()
+                .Enrich.With(new ExceptionChainEnricher(exceptionChainCollector))
                 .Enrich.WithProperty("Application", applicationName)
                 .Enrich.WithProperty("Environment", context.HostingEnvironment.EnvironmentName)
                 .Destructure.With<SensitiveDataDestructuringPolicy>();
@@ -85,7 +86,7 @@ public static class LoggingExtensions
                     LogEventLevel.Fatal);
             }
 
-            configuration.WriteTo.Console(new CompactJsonFormatter());
+            configuration.WriteTo.Console(new SanitizedCompactJsonFormatter());
         });
 
         return builder;
@@ -170,7 +171,7 @@ public static class LoggingExtensions
     /// <summary>
     /// Adiciona ao <c>LogContext</c> as propriedades configuradas em
     /// <c>StructuredLogging:Enrichments</c> e as registradas por código com
-    /// <c>EnrichStructuredLogging()</c> (ex.: matrícula, tenant, unidade).
+    /// <c>EnrichStructuredLogging()</c> (ex.: usuário, tenant, unidade).
     /// </summary>
     /// <param name="app">Pipeline da aplicação.</param>
     /// <returns>O próprio pipeline, para encadeamento.</returns>

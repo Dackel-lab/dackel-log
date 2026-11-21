@@ -60,7 +60,7 @@ customizado, atualize:
 ## Detalhes
 
 - O tema é aplicado antes da primeira pintura por um script inline mínimo; a lógica principal fica em `main.ts`.
-- A versão exibida é buscada da API do NuGet (`dackel-log`), com fallback para `1.0.2` enquanto o pacote não estiver publicado.
+- A versão exibida é buscada da API do NuGet (`dackel-log`), com fallback para `1.0.4` enquanto o pacote não estiver publicado.
 - `_headers` adiciona cabeçalhos de segurança (CSP, HSTS, `nosniff`, `X-Frame-Options`) e cache para `/assets/*`.
 - Sem fontes externas, sem CDN e sem cookies.
 
